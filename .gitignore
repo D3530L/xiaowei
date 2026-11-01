@@ -1,0 +1,4 @@
+# iOS probe build outputs
+samples/didi-ipa/tingdan-ios/packages/
+samples/didi-ipa/tingdan-ios/.theos/
+samples/didi-ipa/tingdan-ios/artifact/

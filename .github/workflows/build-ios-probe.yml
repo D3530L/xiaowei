@@ -1,0 +1,48 @@
+name: build-ios-probe
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build tools
+        shell: bash
+        run: |
+          brew install dpkg ldid
+
+      - name: Install Theos
+        shell: bash
+        run: |
+          git clone --recursive https://github.com/theos/theos.git "$HOME/theos"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+
+      - name: Build arm64 dylib
+        shell: bash
+        working-directory: samples/didi-ipa/tingdan-ios
+        run: |
+          make clean package FINALPACKAGE=1
+          mkdir -p artifact
+          deb="$(find packages -maxdepth 1 -type f -name '*.deb' | head -n 1)"
+          test -n "$deb"
+          dpkg-deb -x "$deb" artifact
+          dylib="$(find artifact -type f -name 'DidiTingdan.dylib' | head -n 1)"
+          test -n "$dylib"
+          file "$dylib"
+          ldid -e "$dylib" > artifact/DidiTingdan.entitlements.plist || true
+          shasum -a 256 "$dylib" | tee artifact/SHA256SUMS
+
+      - name: Upload dylib artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DidiTingdan-probe-arm64
+          path: |
+            samples/didi-ipa/tingdan-ios/artifact/**/*.dylib
+            samples/didi-ipa/tingdan-ios/artifact/*.plist
+            samples/didi-ipa/tingdan-ios/artifact/SHA256SUMS
+          if-no-files-found: error
